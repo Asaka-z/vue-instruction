@@ -1,0 +1,62 @@
+// 官方文档 https://github.com/utatti/perfect-scrollbar#readme
+import Vue from 'vue';
+import PerfectScrollbar from 'perfect-scrollbar';
+import 'perfect-scrollbar/css/perfect-scrollbar.css';
+
+/**
+ * @description 自动判断该更新PerfectScrollbar还是创建它
+ * @param {HTMLElement} el - 必填。dom元素
+ * @param {Object} setting - 可选。perfect-scrollbar的设置
+ * @param {Object} target - 可选。perfect-scrollbar的目标节点的className，默认为el。
+ */
+const el_scrollBar = (el, value = {}) => {
+    let target_el = el;
+    if (value.target) {
+        const el_array = el.children;
+        const target_exp = new RegExp(value.target);
+        for (let index = 0; index < el_array.length; index++) {
+            const element = el_array[index];
+            console.log(element)
+            if (target_exp.test(element.className)) {
+                target_el = element;
+            }
+        }
+    }
+    if (target_el._ps_ instanceof PerfectScrollbar) {
+        target_el._ps_.update();
+    } else {
+        // target_el上挂一份属性
+        let setting = {};
+        if (value.setting) {
+            setting = value.setting;
+        }
+        target_el._ps_ = new PerfectScrollbar(target_el, setting);
+    }
+};
+
+Vue.directive('scrollbar', {
+    // 使用inserted钩子函数（初次创建dom）获取使用自定义指令处的dom
+    inserted (el, binding, vnode) {
+        // PerfectScrollbar实现原理就是对dom注入两个div，一个是x轴一个是y轴，他们两的position都是absolute。因此container必须添加relative
+        const rules = ['relative'];
+        if (!rules.includes(window.getComputedStyle(el, null).position)) {
+            el.style.position = 'relative';
+        }
+        // el上挂一份属性
+        el_scrollBar(el, binding.value);
+    },
+    // 更新dom的时候
+    componentUpdated (el, binding, vnode, oldVnode) {
+        try {
+            // vnode.context其实就是vue实例，这里其实无需实例也直接用Vue的静态方法
+            // 故而也可以写成Vue.nextTick
+            vnode.context.$nextTick(
+                () => {
+                    el_scrollBar(el, binding.value);
+                }
+            );
+        } catch (error) {
+            el_scrollBar(el, binding.value);
+        }
+    }
+});
